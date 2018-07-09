@@ -12,6 +12,34 @@ function escapeRegexCharacters(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+const getField = (item, field) => {
+  // Do extended field parsing if given an object.
+  if (typeof(field) === "object") {
+
+    // Handle both plain objects and .get interfaces
+    const fieldType = field["type"] || field.get("type");
+
+    // Do something different depending on the "type" given.
+    switch(fieldType) {
+    case "slug":
+      return item.slug
+    case "path":
+      return item.path
+    case "frontmatter":
+      const fieldName = field['name'];
+      if(!fieldName) {
+        throw `Can't get frontmatter field without a "name" value in the field object!`;
+      }
+      return item.data[fieldName];
+    default:
+      throw `Relation field type not supported: ${fieldType}`
+    }
+  } else {
+    // Simply pluck from frontmatter if given a string.
+    return new String(item.data[field]);
+  }
+};
+
 class RelationControl extends Component {
   static propTypes = {
     onChange: PropTypes.func.isRequired,
@@ -85,7 +113,7 @@ class RelationControl extends Component {
   getSuggestionValue = (suggestion) => {
     const { field } = this.props;
     const valueField = field.get('valueField');
-    return suggestion.data[valueField];
+    return getField(suggestion, valueField);
   };
 
   renderSuggestion = (suggestion) => {
@@ -94,11 +122,11 @@ class RelationControl extends Component {
     if (List.isList(valueField)) {
       return (
         <span>
-          {valueField.toJS().map(key => <span key={key}>{new String(suggestion.data[key])}{' '}</span>)}
+          {valueField.toJS().map(key => <span key={key}>{new String(getField(suggestion,key))}{' '}</span>)}
         </span>
       );
     }
-    return <span>{new String(suggestion.data[valueField])}</span>;
+    return <span>{new String(getField(suggestion,valueField))}</span>;
   };
 
   render() {
@@ -135,7 +163,7 @@ class RelationControl extends Component {
           renderSuggestion={this.renderSuggestion}
           inputProps={inputProps}
           focusInputOnSuggestionClick={false}
-        />
+          />
         <Loader active={isFetching === this.controlID} />
       </div>
     );
